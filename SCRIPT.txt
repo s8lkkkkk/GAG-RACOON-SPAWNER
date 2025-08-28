@@ -1,5 +1,8 @@
-local p = game:GetService('Players').LocalPlayer
-local g = Instance.new('ScreenGui', p:WaitForChild('PlayerGui'))
+local Players = game:GetService('Players')
+local LocalPlayer = Players.LocalPlayer
+
+-- GUI setup
+local g = Instance.new('ScreenGui', LocalPlayer:WaitForChild('PlayerGui'))
 g.Name = 'PetGenUI'
 
 local f = Instance.new('Frame', g)
@@ -9,6 +12,7 @@ f.BackgroundColor3 = Color3.fromRGB(30,30,30)
 f.Active = true
 f.Draggable = true
 
+-- Pet definitions
 local pets = {
     {'Raccoon', Color3.fromRGB(0,135,255), '112383235077808', '100522907734059'},
     {'Butterfly', Color3.fromRGB(255,100,200), 'PUT_BUTTERFLY_MESHID_HERE', 'PUT_BUTTERFLY_TEXTUREID_HERE'},
@@ -17,6 +21,60 @@ local pets = {
 
 local toggles = {}
 
+-- Smooth rotation + movement function with leg-bobbing
+local function setupPetBehavior(model, root, height)
+    model.PrimaryPart = root
+    local part = model:FindFirstChildOfClass("Part") -- the visible pet part
+    local mesh = part:FindFirstChildOfClass("SpecialMesh")
+    local centerPos = root.Position
+    local areaRadius = 17
+    local speed = 4 -- studs per second
+    local rotationSpeed = 2 -- how fast it turns
+
+    task.spawn(function()
+        while true do
+            local targetPos = Vector3.new(
+                centerPos.X + math.random(-areaRadius*10, areaRadius*10)/10,
+                height,
+                centerPos.Z + math.random(-areaRadius*10, areaRadius*10)/10
+            )
+
+            local direction = (targetPos - part.Position)
+            local distance = direction.Magnitude
+            direction = direction.Unit
+
+            -- Smoothly rotate toward target first
+            local currentCFrame = part.CFrame
+            local targetCFrame = CFrame.new(part.Position, Vector3.new(targetPos.X, part.Position.Y, targetPos.Z))
+            local rotationTime = 0
+            while rotationTime < 1 do
+                part.CFrame = currentCFrame:Lerp(targetCFrame, rotationTime)
+                rotationTime = rotationTime + rotationSpeed * 0.03
+                task.wait(0.03)
+            end
+            part.CFrame = targetCFrame -- finalize rotation
+
+            -- Move forward toward target with leg-bobbing
+            local steps = math.ceil(distance / 0.2)
+            local stepAngle = 0
+            for i = 1, steps do
+                part.Position = part.Position + direction * 0.2
+
+                -- Leg-bob effect
+                if mesh then
+                    stepAngle = stepAngle + math.rad(15)
+                    mesh.Offset = Vector3.new(0, math.sin(stepAngle) * 0.1, 0)
+                end
+
+                task.wait(0.03)
+            end
+
+            task.wait(0.5)
+        end
+    end)
+end
+
+-- Create GUI buttons for pets
 for i, v in ipairs(pets) do
     local name, color, meshId, textureId = v[1], v[2], v[3], v[4]
 
@@ -38,37 +96,67 @@ for i, v in ipairs(pets) do
         if toggles[name] then
             task.spawn(function()
                 while toggles[name] do
-                    local w = math.random(1,25) -- weight
-                    local a = math.random(1,25) -- age
+                    local weight = math.random(11,16)
+                    local age = math.random(1,25)
                     local t = Instance.new('Tool')
-                    t.Name = name..' ['..w..'KG] [Age '..a..']'
+                    t.Name = name..' ['..weight..'KG] [Age '..age..']'
 
                     -- Handle
                     local h = Instance.new('Part')
                     h.Name = 'Handle'
                     h.Size = Vector3.new(2,2,2)
-                    h.Transparency = 0
-                    h.CanCollide = false
                     h.Parent = t
 
-                    -- SpecialMesh for your pet
+                    -- Mesh
                     local mesh = Instance.new('SpecialMesh', h)
                     mesh.MeshType = Enum.MeshType.FileMesh
                     mesh.MeshId = 'rbxassetid://'..meshId
                     mesh.TextureId = 'rbxassetid://'..textureId
 
-                    -- Dynamic scaling for Raccoon based on weight
-                    if name == 'Raccoon' then
-                        local minWeight, maxWeight = 1, 25
-                        local minScale, maxScale = 1, 3
-                        local scaled = minScale + (w - minWeight)/(maxWeight - minWeight) * (maxScale - minScale)
-                        mesh.Scale = Vector3.new(scaled, scaled, scaled)
-                    else
-                        mesh.Scale = Vector3.new(2,2,2) -- default for other pets
-                    end
+                    local baseSize = 2
+                    local meshSize = baseSize + 0.25 * (weight - 10)
+                    mesh.Scale = Vector3.new(meshSize, meshSize, meshSize)
 
-                    t.Parent = p.Backpack
+                    t.Parent = LocalPlayer.Backpack
                     task.wait(0.2)
+
+                    t.Activated:Connect(function()
+                        local mouse = LocalPlayer:GetMouse()
+                        local height = 4 + 0.1 * (weight - 10)
+                        if weight == 11 then height = height - 0.5
+                        elseif weight == 12 then height = height - 0.3 end
+
+                        local position = Vector3.new(mouse.Hit.Position.X, height, mouse.Hit.Position.Z)
+
+                        local model = Instance.new('Model')
+                        model.Name = t.Name
+
+                        local partClone = h:Clone()
+                        partClone.Anchored = false
+                        partClone.CanCollide = false
+                        partClone.Position = position
+                        partClone.Parent = model
+
+                        local root = Instance.new('Part')
+                        root.Name = 'HumanoidRootPart'
+                        root.Size = Vector3.new(0.5,0.5,0.5)
+                        root.Transparency = 1
+                        root.Anchored = true
+                        root.CanCollide = false
+                        root.Position = position - Vector3.new(0,0,1)
+                        root.Parent = model
+                        model.PrimaryPart = root
+
+                        local weld = Instance.new('WeldConstraint')
+                        weld.Part0 = root
+                        weld.Part1 = partClone
+                        weld.Parent = root
+
+                        model.Parent = workspace
+                        t:Destroy()
+
+                        setupPetBehavior(model, root, height)
+                    end)
                 end
             end)
         end
