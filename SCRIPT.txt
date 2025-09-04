@@ -1,3 +1,4 @@
+-- Services
 local Players = game:GetService('Players')
 local LocalPlayer = Players.LocalPlayer
 
@@ -6,13 +7,13 @@ local g = Instance.new('ScreenGui', LocalPlayer:WaitForChild('PlayerGui'))
 g.Name = 'PetGenUI'
 
 local f = Instance.new('Frame', g)
-f.Size = UDim2.new(0, 260, 0, 160)
-f.Position = UDim2.new(0.5, -130, 0.5, -80)
+f.Size = UDim2.new(0, 300, 0, 320)
+f.Position = UDim2.new(0.5, -150, 0.5, -160)
 f.BackgroundColor3 = Color3.fromRGB(30,30,30)
 f.Active = true
 f.Draggable = true
 
--- Pet definitions
+-- ======= PET SYSTEM =======
 local pets = {
     {'Raccoon', Color3.fromRGB(0,135,255), '112383235077808', '100522907734059'},
     {'Butterfly', Color3.fromRGB(255,100,200), 'PUT_BUTTERFLY_MESHID_HERE', 'PUT_BUTTERFLY_TEXTUREID_HERE'},
@@ -21,15 +22,14 @@ local pets = {
 
 local toggles = {}
 
--- Smooth rotation + movement function with leg-bobbing
 local function setupPetBehavior(model, root, height)
     model.PrimaryPart = root
-    local part = model:FindFirstChildOfClass("Part") -- the visible pet part
+    local part = model:FindFirstChildOfClass("Part")
     local mesh = part:FindFirstChildOfClass("SpecialMesh")
     local centerPos = root.Position
     local areaRadius = 17
-    local speed = 4 -- studs per second
-    local rotationSpeed = 2 -- how fast it turns
+    local speed = 4
+    local rotationSpeed = 2
 
     task.spawn(function()
         while true do
@@ -43,7 +43,6 @@ local function setupPetBehavior(model, root, height)
             local distance = direction.Magnitude
             direction = direction.Unit
 
-            -- Smoothly rotate toward target first
             local currentCFrame = part.CFrame
             local targetCFrame = CFrame.new(part.Position, Vector3.new(targetPos.X, part.Position.Y, targetPos.Z))
             local rotationTime = 0
@@ -52,32 +51,26 @@ local function setupPetBehavior(model, root, height)
                 rotationTime = rotationTime + rotationSpeed * 0.03
                 task.wait(0.03)
             end
-            part.CFrame = targetCFrame -- finalize rotation
+            part.CFrame = targetCFrame
 
-            -- Move forward toward target with leg-bobbing
             local steps = math.ceil(distance / 0.2)
             local stepAngle = 0
             for i = 1, steps do
                 part.Position = part.Position + direction * 0.2
-
-                -- Leg-bob effect
                 if mesh then
                     stepAngle = stepAngle + math.rad(15)
                     mesh.Offset = Vector3.new(0, math.sin(stepAngle) * 0.1, 0)
                 end
-
                 task.wait(0.03)
             end
-
             task.wait(0.5)
         end
     end)
 end
 
--- Create GUI buttons for pets
+-- Pet Buttons
 for i, v in ipairs(pets) do
     local name, color, meshId, textureId = v[1], v[2], v[3], v[4]
-
     local b = Instance.new('TextButton', f)
     b.Size = UDim2.new(0.9,0,0,40)
     b.Position = UDim2.new(0.05,0,0,(i-1)*50+10)
@@ -96,18 +89,16 @@ for i, v in ipairs(pets) do
         if toggles[name] then
             task.spawn(function()
                 while toggles[name] do
-                    local weight = math.random(11,16)
+                    local weight = math.random(1100,1600) / 100
                     local age = math.random(1,25)
                     local t = Instance.new('Tool')
-                    t.Name = name..' ['..weight..'KG] [Age '..age..']'
+                    t.Name = name.."\n["..string.format("%.2f", weight).." KG]\n[Age "..age.."]"
 
-                    -- Handle
                     local h = Instance.new('Part')
                     h.Name = 'Handle'
                     h.Size = Vector3.new(2,2,2)
                     h.Parent = t
 
-                    -- Mesh
                     local mesh = Instance.new('SpecialMesh', h)
                     mesh.MeshType = Enum.MeshType.FileMesh
                     mesh.MeshId = 'rbxassetid://'..meshId
@@ -162,3 +153,84 @@ for i, v in ipairs(pets) do
         end
     end)
 end
+
+-- ======= AUTO JUMP SYSTEM =======
+-- Status label
+local statusLabel = Instance.new("TextLabel", f)
+statusLabel.Size = UDim2.new(0.9,0,0,30)
+statusLabel.Position = UDim2.new(0.05,0,0,250)
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextColor3 = Color3.new(1,1,1)
+statusLabel.Text = "Auto Jump: Stopped"
+statusLabel.Font = Enum.Font.SourceSansBold
+statusLabel.TextScaled = true
+
+-- Interval box
+local intervalBox = Instance.new("TextBox", f)
+intervalBox.Size = UDim2.new(0.4,0,0,30)
+intervalBox.Position = UDim2.new(0.05,0,0,280)
+intervalBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
+intervalBox.TextColor3 = Color3.new(1,1,1)
+intervalBox.Text = "60"
+intervalBox.ClearTextOnFocus = false
+intervalBox.Font = Enum.Font.SourceSans
+intervalBox.TextScaled = true
+
+-- Start button
+local startBtn = Instance.new("TextButton", f)
+startBtn.Size = UDim2.new(0.2,0,0,30)
+startBtn.Position = UDim2.new(0.5,0,0,280)
+startBtn.BackgroundColor3 = Color3.fromRGB(0,170,0)
+startBtn.TextColor3 = Color3.new(1,1,1)
+startBtn.Text = "Start"
+startBtn.Font = Enum.Font.SourceSansBold
+startBtn.TextScaled = true
+
+-- Stop button
+local stopBtn = Instance.new("TextButton", f)
+stopBtn.Size = UDim2.new(0.2,0,0,30)
+stopBtn.Position = UDim2.new(0.75,0,0,280)
+stopBtn.BackgroundColor3 = Color3.fromRGB(170,0,0)
+stopBtn.TextColor3 = Color3.new(1,1,1)
+stopBtn.Text = "Stop"
+stopBtn.Font = Enum.Font.SourceSansBold
+stopBtn.TextScaled = true
+
+-- Jump loop
+local running = false
+local function startJumpLoop()
+    running = true
+    while running do
+        local interval = tonumber(intervalBox.Text) or 60
+        if interval < 1 then interval = 1 end
+
+        for t = interval, 1, -1 do
+            if not running then break end
+            statusLabel.Text = "Jumping in: "..t.."s"
+            task.wait(1)
+        end
+
+        if running then
+            local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                statusLabel.Text = "Jumped!"
+                task.wait(0.5)
+            else
+                statusLabel.Text = "No Humanoid found!"
+            end
+        end
+    end
+end
+
+local function stopJumpLoop()
+    running = false
+    statusLabel.Text = "Auto Jump: Stopped"
+end
+
+startBtn.MouseButton1Click:Connect(function()
+    if not running then task.spawn(startJumpLoop) end
+end)
+
+stopBtn.MouseButton1Click:Connect(stopJumpLoop)
