@@ -2,14 +2,15 @@
 local Players = game:GetService('Players')
 local LocalPlayer = Players.LocalPlayer
 local UIS = game:GetService('UserInputService')
+local RunService = game:GetService('RunService')
 
 -- =================== GUI SETUP ===================
 local g = Instance.new('ScreenGui', LocalPlayer:WaitForChild('PlayerGui'))
 g.Name = 'PetGenUI'
 
 local f = Instance.new('Frame', g)
-f.Size = UDim2.new(0, 350, 0, 420)
-f.Position = UDim2.new(0.5, -175, 0.5, -210)
+f.Size = UDim2.new(0, 350, 0, 500)
+f.Position = UDim2.new(0.5, -175, 0.5, -250)
 f.BackgroundColor3 = Color3.fromRGB(0,0,0)
 f.BackgroundTransparency = 0.7
 f.Active = true
@@ -46,6 +47,7 @@ titleCorner.CornerRadius = UDim.new(0,15)
 -- =================== Twinkling Spots ===================
 local numSpots = 50
 local spots = {}
+local twinkleEnabled = true
 for i = 1, numSpots do
     local spot = Instance.new("Frame", f)
     spot.Size = UDim2.new(0,4,0,4)
@@ -56,10 +58,14 @@ for i = 1, numSpots do
     table.insert(spots, spot)
 end
 
-spawn(function()
+task.spawn(function()
     while true do
         for _, spot in ipairs(spots) do
-            spot.BackgroundTransparency = math.random()
+            if twinkleEnabled then
+                spot.BackgroundTransparency = math.random()
+            else
+                spot.BackgroundTransparency = 1
+            end
         end
         task.wait(0.1)
     end
@@ -73,7 +79,7 @@ tabFrame.BackgroundTransparency = 1
 
 local function makeTabButton(text, posX)
     local btn = Instance.new("TextButton", tabFrame)
-    btn.Size = UDim2.new(0.5,0,1,0)
+    btn.Size = UDim2.new(0.33,0,1,0)
     btn.Position = UDim2.new(posX,0,0,0)
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255,255,255)
@@ -87,7 +93,8 @@ local function makeTabButton(text, posX)
 end
 
 local petTabBtn = makeTabButton("Pets",0)
-local bgTabBtn = makeTabButton("Backgrounds",0.5)
+local bgTabBtn = makeTabButton("Backgrounds",0.33)
+local miscTabBtn = makeTabButton("Misc",0.66)
 
 -- =================== CONTENT FRAMES ===================
 local petFrame = Instance.new("Frame", f)
@@ -102,19 +109,26 @@ bgFrame.Position = UDim2.new(0,0,0,70)
 bgFrame.BackgroundTransparency = 1
 bgFrame.Visible = false
 
+local miscFrame = Instance.new("Frame", f)
+miscFrame.Size = UDim2.new(1,0,1,-70)
+miscFrame.Position = UDim2.new(0,0,0,70)
+miscFrame.BackgroundTransparency = 1
+miscFrame.Visible = false
+
 -- Tab switching
-petTabBtn.MouseButton1Click:Connect(function()
-    petFrame.Visible = true
-    bgFrame.Visible = false
-    petTabBtn.BackgroundTransparency = 0.3
-    bgTabBtn.BackgroundTransparency = 0.7
-end)
-bgTabBtn.MouseButton1Click:Connect(function()
-    petFrame.Visible = false
-    bgFrame.Visible = true
-    petTabBtn.BackgroundTransparency = 0.7
-    bgTabBtn.BackgroundTransparency = 0.3
-end)
+local function switchTab(tab)
+    petFrame.Visible = tab == "Pets"
+    bgFrame.Visible = tab == "Backgrounds"
+    miscFrame.Visible = tab == "Misc"
+
+    petTabBtn.BackgroundTransparency = tab=="Pets" and 0.3 or 0.7
+    bgTabBtn.BackgroundTransparency = tab=="Backgrounds" and 0.3 or 0.7
+    miscTabBtn.BackgroundTransparency = tab=="Misc" and 0.3 or 0.7
+end
+
+petTabBtn.MouseButton1Click:Connect(function() switchTab("Pets") end)
+bgTabBtn.MouseButton1Click:Connect(function() switchTab("Backgrounds") end)
+miscTabBtn.MouseButton1Click:Connect(function() switchTab("Misc") end)
 
 -- =================== PET SYSTEM ===================
 local pets = {
@@ -170,7 +184,6 @@ local function setupPetBehavior(model, root, height)
     end)
 end
 
--- Pet Buttons
 for i,v in ipairs(pets) do
     local name, meshId, textureId = v[1], v[2], v[3]
     local b = Instance.new('TextButton', petFrame)
@@ -193,7 +206,6 @@ for i,v in ipairs(pets) do
         if toggles[name] then
             task.spawn(function()
                 while toggles[name] do
-                    -- Spawn pet tool logic
                     local weight = math.random(1100,1600)/100
                     local age = math.random(1,25)
                     local t = Instance.new('Tool')
@@ -256,7 +268,8 @@ local backgrounds = {
     {Name="Dark Angel", Id="rbxassetid://114754109151561"},
     {Name="Fisheye Street", Id="rbxassetid://90982760088133"},
     {Name="Dark Castles", Id="rbxassetid://76608212581528"},
-    {Name="Bunnygirl Senpai", Id="rbxassetid://122626436561599"}
+    {Name="Bunnygirl Senpai", Id="rbxassetid://122626436561599"},
+    {Name="Hell Cat", Id="rbxassetid://122950806652888"} -- Added
 }
 
 for i,bg in ipairs(backgrounds) do
@@ -274,3 +287,146 @@ for i,bg in ipairs(backgrounds) do
         bgImage.Image = bg.Id
     end)
 end
+
+-- =================== MISC TAB ===================
+-- WalkSpeed & JumpPower Sliders
+local function createSlider(parent, name, min, max, default, posY, callback)
+    local frame = Instance.new("Frame", parent)
+    frame.Size = UDim2.new(0.9,0,0,50)
+    frame.Position = UDim2.new(0.05,0,0,posY)
+    frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    frame.ZIndex = 5
+    local fCorner = Instance.new("UICorner", frame)
+    fCorner.CornerRadius = UDim.new(0,12)
+
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1,0,0.4,0)
+    label.Position = UDim2.new(0,0,0,0)
+    label.Text = name..": "..default
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.GothamBold
+    label.TextScaled = true
+    label.ZIndex = 6
+
+    local sliderBG = Instance.new("Frame", frame)
+    sliderBG.Size = UDim2.new(1,-20,0.4,0)
+    sliderBG.Position = UDim2.new(0,10,0.6,0)
+    sliderBG.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    sliderBG.ZIndex = 5
+    local bgCorner = Instance.new("UICorner", sliderBG)
+    bgCorner.CornerRadius = UDim.new(0,8)
+
+    local handle = Instance.new("Frame", sliderBG)
+    handle.Size = UDim2.new((default-min)/(max-min),1,1,0)
+    handle.BackgroundColor3 = Color3.fromRGB(200,200,200)
+    handle.ZIndex = 6
+    local hCorner = Instance.new("UICorner", handle)
+    hCorner.CornerRadius = UDim.new(0,6)
+
+    local dragging = false
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            input:CaptureMouse()
+        end
+    end)
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mouseX = UIS:GetMouseLocation().X - sliderBG.AbsolutePosition.X
+            local percent = math.clamp(mouseX/sliderBG.AbsoluteSize.X,0,1)
+            handle.Size = UDim2.new(percent,0,1,0)
+            local value = min + percent*(max-min)
+            label.Text = name..": "..math.floor(value)
+            callback(value)
+        end
+    end)
+end
+
+local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local humanoid = character:FindFirstChildWhichIsA("Humanoid")
+
+createSlider(miscFrame,"WalkSpeed",8,300,16,20,function(val)
+    if humanoid then humanoid.WalkSpeed = val end
+end)
+createSlider(miscFrame,"JumpPower",50,500,50,90,function(val)
+    if humanoid then humanoid.JumpPower = val end
+end)
+
+-- =================== WASD FLY ===================
+local flying = false
+local flySpeed = 50
+local flyVel = Vector3.new(0,0,0)
+local bodyVelocity
+
+local function startFly()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    flying = true
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
+    bodyVelocity.Velocity = Vector3.new(0,0,0)
+    bodyVelocity.Parent = hrp
+
+    local function updateFly()
+        local dir = Vector3.new()
+        if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + hrp.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - hrp.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - hrp.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + hrp.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0,1,0) end
+        if dir.Magnitude > 0 then
+            flyVel = dir.Unit * flySpeed
+        else
+            flyVel = Vector3.new(0,0,0)
+        end
+        bodyVelocity.Velocity = flyVel
+    end
+
+    RunService:BindToRenderStep("FlyStep",301,updateFly)
+end
+
+local function stopFly()
+    flying = false
+    if bodyVelocity then bodyVelocity:Destroy() bodyVelocity=nil end
+    RunService:UnbindFromRenderStep("FlyStep")
+end
+
+local flyBtn = Instance.new("TextButton", miscFrame)
+flyBtn.Size = UDim2.new(0.9,0,0,40)
+flyBtn.Position = UDim2.new(0.05,0,0,160)
+flyBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+flyBtn.TextColor3 = Color3.fromRGB(255,255,255)
+flyBtn.Text = "Toggle Fly"
+flyBtn.Font = Enum.Font.GothamBold
+flyBtn.TextSize = 16
+local flyCorner = Instance.new("UICorner", flyBtn)
+flyCorner.CornerRadius = UDim.new(0,12)
+
+flyBtn.MouseButton1Click:Connect(function()
+    if flying then stopFly() else startFly() end
+end)
+
+-- Twinkle toggle
+local twinkleBtn = Instance.new("TextButton", miscFrame)
+twinkleBtn.Size = UDim2.new(0.9,0,0,40)
+twinkleBtn.Position = UDim2.new(0.05,0,0,210)
+twinkleBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+twinkleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+twinkleBtn.Text = "Toggle Twinkles"
+twinkleBtn.Font = Enum.Font.GothamBold
+twinkleBtn.TextSize = 16
+local twinkleCorner = Instance.new("UICorner", twinkleBtn)
+twinkleCorner.CornerRadius = UDim.new(0,12)
+twinkleBtn.MouseButton1Click:Connect(function()
+    twinkleEnabled = not twinkleEnabled
+end)
