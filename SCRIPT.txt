@@ -1,39 +1,56 @@
 -- Services
 local Players = game:GetService('Players')
 local LocalPlayer = Players.LocalPlayer
+local UIS = game:GetService('UserInputService')
 
--- GUI setup
+-- =================== GUI SETUP ===================
 local g = Instance.new('ScreenGui', LocalPlayer:WaitForChild('PlayerGui'))
 g.Name = 'PetGenUI'
 
 local f = Instance.new('Frame', g)
-f.Size = UDim2.new(0, 300, 0, 320)
-f.Position = UDim2.new(0.5, -150, 0.5, -160)
-f.BackgroundColor3 = Color3.fromRGB(0,0,0) -- black background
+f.Size = UDim2.new(0, 350, 0, 420)
+f.Position = UDim2.new(0.5, -175, 0.5, -210)
+f.BackgroundColor3 = Color3.fromRGB(0,0,0)
+f.BackgroundTransparency = 0.7
 f.Active = true
 f.Draggable = true
 f.BorderSizePixel = 0
 f.ClipsDescendants = true
 
--- =================== TOP LABEL ===================
+local fCorner = Instance.new("UICorner", f)
+fCorner.CornerRadius = UDim.new(0,20)
+
+-- Background Image
+local bgImage = Instance.new("ImageLabel", f)
+bgImage.Name = "BackgroundImage"
+bgImage.Size = UDim2.new(1,0,1,0)
+bgImage.Position = UDim2.new(0,0,0,0)
+bgImage.BackgroundTransparency = 1
+bgImage.ZIndex = 1
+bgImage.Image = "rbxassetid://95162193003483"
+
+-- Title
 local titleLabel = Instance.new("TextLabel", f)
-titleLabel.Size = UDim2.new(1, 0, 0, 30)
-titleLabel.Position = UDim2.new(0, 0, 0, 0)
-titleLabel.BackgroundTransparency = 1
+titleLabel.Size = UDim2.new(1,0,0,40)
+titleLabel.Position = UDim2.new(0,0,0,0)
+titleLabel.BackgroundColor3 = Color3.fromRGB(20,20,20)
+titleLabel.BackgroundTransparency = 0.6
 titleLabel.Text = "MSXLV PET SPAWNER"
-titleLabel.TextColor3 = Color3.fromRGB(255,255,255) -- white text
+titleLabel.TextColor3 = Color3.fromRGB(255,255,255)
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextScaled = true
+titleLabel.ZIndex = 2
+local titleCorner = Instance.new("UICorner", titleLabel)
+titleCorner.CornerRadius = UDim.new(0,15)
 
 -- =================== Twinkling Spots ===================
 local numSpots = 50
 local spots = {}
-
 for i = 1, numSpots do
     local spot = Instance.new("Frame", f)
-    spot.Size = UDim2.new(0, 4, 0, 4)
-    spot.Position = UDim2.new(math.random(), 0, math.random(), 0)
-    spot.BackgroundColor3 = Color3.fromRGB(255,255,255) -- white spots
+    spot.Size = UDim2.new(0,4,0,4)
+    spot.Position = UDim2.new(math.random(),0,math.random(),0)
+    spot.BackgroundColor3 = Color3.fromRGB(255,255,255)
     spot.BorderSizePixel = 0
     spot.BackgroundTransparency = math.random()
     table.insert(spots, spot)
@@ -48,11 +65,62 @@ spawn(function()
     end
 end)
 
--- ======= PET SYSTEM =======
+-- =================== TAB BUTTONS ===================
+local tabFrame = Instance.new("Frame", f)
+tabFrame.Size = UDim2.new(1,0,0,30)
+tabFrame.Position = UDim2.new(0,0,0,40)
+tabFrame.BackgroundTransparency = 1
+
+local function makeTabButton(text, posX)
+    local btn = Instance.new("TextButton", tabFrame)
+    btn.Size = UDim2.new(0.5,0,1,0)
+    btn.Position = UDim2.new(posX,0,0,0)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextScaled = true
+    btn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    btn.ZIndex = 2
+    local c = Instance.new("UICorner", btn)
+    c.CornerRadius = UDim.new(0,12)
+    return btn
+end
+
+local petTabBtn = makeTabButton("Pets",0)
+local bgTabBtn = makeTabButton("Backgrounds",0.5)
+
+-- =================== CONTENT FRAMES ===================
+local petFrame = Instance.new("Frame", f)
+petFrame.Size = UDim2.new(1,0,1,-70)
+petFrame.Position = UDim2.new(0,0,0,70)
+petFrame.BackgroundTransparency = 1
+petFrame.Visible = true
+
+local bgFrame = Instance.new("Frame", f)
+bgFrame.Size = UDim2.new(1,0,1,-70)
+bgFrame.Position = UDim2.new(0,0,0,70)
+bgFrame.BackgroundTransparency = 1
+bgFrame.Visible = false
+
+-- Tab switching
+petTabBtn.MouseButton1Click:Connect(function()
+    petFrame.Visible = true
+    bgFrame.Visible = false
+    petTabBtn.BackgroundTransparency = 0.3
+    bgTabBtn.BackgroundTransparency = 0.7
+end)
+bgTabBtn.MouseButton1Click:Connect(function()
+    petFrame.Visible = false
+    bgFrame.Visible = true
+    petTabBtn.BackgroundTransparency = 0.7
+    bgTabBtn.BackgroundTransparency = 0.3
+end)
+
+-- =================== PET SYSTEM ===================
 local pets = {
-    {'Raccoon', Color3.fromRGB(255,255,255), '112383235077808', '100522907734059'},
-    {'Butterfly', Color3.fromRGB(255,255,255), 'PUT_BUTTERFLY_MESHID_HERE', 'PUT_BUTTERFLY_TEXTUREID_HERE'},
-    {'Dragonfly', Color3.fromRGB(255,255,255), 'PUT_DRAGONFLY_MESHID_HERE', 'PUT_DRAGONFLY_TEXTUREID_HERE'}
+    {'Raccoon','112383235077808','100522907734059'},
+    {'Butterfly','PUT_BUTTERFLY_MESHID_HERE','PUT_BUTTERFLY_TEXTUREID_HERE'},
+    {'Dragonfly','PUT_DRAGONFLY_MESHID_HERE','PUT_DRAGONFLY_TEXTUREID_HERE'}
 }
 
 local toggles = {}
@@ -63,7 +131,6 @@ local function setupPetBehavior(model, root, height)
     local mesh = part:FindFirstChildOfClass("SpecialMesh")
     local centerPos = root.Position
     local areaRadius = 17
-    local speed = 4
     local rotationSpeed = 2
 
     task.spawn(function()
@@ -104,16 +171,18 @@ local function setupPetBehavior(model, root, height)
 end
 
 -- Pet Buttons
-for i, v in ipairs(pets) do
-    local name, color, meshId, textureId = v[1], v[2], v[3], v[4]
-    local b = Instance.new('TextButton', f)
+for i,v in ipairs(pets) do
+    local name, meshId, textureId = v[1], v[2], v[3]
+    local b = Instance.new('TextButton', petFrame)
     b.Size = UDim2.new(0.9,0,0,40)
-    b.Position = UDim2.new(0.05,0,0,(i-1)*50+50)
-    b.BackgroundColor3 = Color3.fromRGB(255,255,255) -- white buttons
-    b.TextColor3 = Color3.fromRGB(0,0,0) -- black text
+    b.Position = UDim2.new(0.05,0,0,(i-1)*50)
+    b.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    b.TextColor3 = Color3.fromRGB(255,255,255)
     b.Text = 'Start '..name
     b.Font = Enum.Font.GothamBold
     b.TextSize = 16
+    local bCorner = Instance.new("UICorner", b)
+    bCorner.CornerRadius = UDim.new(0,12)
 
     toggles[name] = false
 
@@ -124,36 +193,28 @@ for i, v in ipairs(pets) do
         if toggles[name] then
             task.spawn(function()
                 while toggles[name] do
-                    local weight = math.random(1100,1600) / 100
+                    -- Spawn pet tool logic
+                    local weight = math.random(1100,1600)/100
                     local age = math.random(1,25)
                     local t = Instance.new('Tool')
-                    t.Name = name.."\n["..string.format("%.2f", weight).." KG]\n[Age "..age.."]"
-
+                    t.Name = name.."\n["..string.format("%.2f",weight).." KG]\n[Age "..age.."]"
                     local h = Instance.new('Part')
                     h.Name = 'Handle'
                     h.Size = Vector3.new(2,2,2)
                     h.Parent = t
-
-                    local mesh = Instance.new('SpecialMesh', h)
+                    local mesh = Instance.new('SpecialMesh',h)
                     mesh.MeshType = Enum.MeshType.FileMesh
                     mesh.MeshId = 'rbxassetid://'..meshId
                     mesh.TextureId = 'rbxassetid://'..textureId
-
                     local baseSize = 2
-                    local meshSize = baseSize + 0.25 * (weight - 10)
-                    mesh.Scale = Vector3.new(meshSize, meshSize, meshSize)
-
+                    local meshSize = baseSize + 0.25*(weight-10)
+                    mesh.Scale = Vector3.new(meshSize,meshSize,meshSize)
                     t.Parent = LocalPlayer.Backpack
-                    task.wait(0.2)
 
                     t.Activated:Connect(function()
                         local mouse = LocalPlayer:GetMouse()
-                        local height = 4 + 0.1 * (weight - 10)
-                        if weight == 11 then height = height - 0.5
-                        elseif weight == 12 then height = height - 0.3 end
-
-                        local position = Vector3.new(mouse.Hit.Position.X, height, mouse.Hit.Position.Z)
-
+                        local height = 4 + 0.1*(weight-10)
+                        local position = Vector3.new(mouse.Hit.Position.X,height,mouse.Hit.Position.Z)
                         local model = Instance.new('Model')
                         model.Name = t.Name
 
@@ -180,11 +241,36 @@ for i, v in ipairs(pets) do
 
                         model.Parent = workspace
                         t:Destroy()
-
                         setupPetBehavior(model, root, height)
                     end)
+                    task.wait(0.2)
                 end
             end)
         end
+    end)
+end
+
+-- =================== BACKGROUND TAB ===================
+local backgrounds = {
+    {Name="Job Application", Id="rbxassetid://95162193003483"},
+    {Name="Dark Angel", Id="rbxassetid://114754109151561"},
+    {Name="Fisheye Street", Id="rbxassetid://90982760088133"},
+    {Name="Dark Castles", Id="rbxassetid://76608212581528"},
+    {Name="Bunnygirl Senpai", Id="rbxassetid://122626436561599"}
+}
+
+for i,bg in ipairs(backgrounds) do
+    local b = Instance.new("TextButton", bgFrame)
+    b.Size = UDim2.new(0.9,0,0,40)
+    b.Position = UDim2.new(0.05,0,0,(i-1)*50)
+    b.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    b.TextColor3 = Color3.fromRGB(255,255,255)
+    b.Text = "Set "..bg.Name
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 16
+    local bCorner = Instance.new("UICorner", b)
+    bCorner.CornerRadius = UDim.new(0,12)
+    b.MouseButton1Click:Connect(function()
+        bgImage.Image = bg.Id
     end)
 end
